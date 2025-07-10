@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "Random Link Clicker",
+    "version": "1.0",
+    "description": "Clicks random links on a webpage for testing purposes.",
+    "permissions": ["activeTab", "scripting"],
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["content.js"]
+      }
+    ]
+  }
