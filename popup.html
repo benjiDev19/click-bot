@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Random Link Clicker</title>
+  <title>Google Result Clicker</title>
   <style>
-    body { width: 200px; padding: 10px; }
-    button { width: 100%; padding: 5px; margin-top: 10px; }
+    body { width: 240px; padding: 10px; font-family: Arial, sans-serif; }
+    label { display: block; margin-bottom: 6px; font-size: 12px; }
+    input { width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px; }
+    button { width: 100%; padding: 8px; margin-top: 6px; }
   </style>
 </head>
 <body>
-  <h3>Random Link Clicker</h3>
-  <p>Click the button to start/stop random link clicking.</p>
+  <h3>Google Result Clicker</h3>
+  <label for="targetSite">Website to search on Google</label>
+  <input id="targetSite" type="text" placeholder="example.com" />
   <button id="toggleButton">Start Clicking</button>
   <script src="popup.js"></script>
 </body>
