@@ -1,13 +1,8 @@
-let isClicking = false;
-let originalUrl = '';
-let targetSite = '';
-let googleSearchUrl = '';
-
-const SEARCH_RESULT_DELAY_MS = 2500;
-const TARGET_PAGE_DELAY_MS = 5000;
+const SEARCH_RESULT_DELAY_MS = 2200;
+const TARGET_VISIT_DELAY_MS = 4200;
 
 function normalizeSite(site) {
-  return site
+  return (site || '')
     .replace(/^https?:\/\//i, '')
     .replace(/^www\./i, '')
     .split('/')[0]
@@ -15,8 +10,12 @@ function normalizeSite(site) {
     .toLowerCase();
 }
 
-function buildGoogleSearchUrl(site) {
-  return `https://www.google.com/search?q=${encodeURIComponent(site)}`;
+function isGoogleSearchPage() {
+  return window.location.hostname.includes('google.') && window.location.pathname === '/search';
+}
+
+function isOnTargetSite(targetSite) {
+  return normalizeSite(window.location.hostname).includes(normalizeSite(targetSite));
 }
 
 function extractDestinationUrl(resultHref) {
@@ -31,8 +30,10 @@ function extractDestinationUrl(resultHref) {
   }
 }
 
-function findTargetSearchResult() {
+function findTargetSearchResult(targetSite) {
   const links = Array.from(document.querySelectorAll('a[href]'));
+  const normalizedTarget = normalizeSite(targetSite);
+
   for (const link of links) {
     const destination = extractDestinationUrl(link.href);
     if (!destination) {
@@ -41,100 +42,59 @@ function findTargetSearchResult() {
 
     try {
       const destinationHost = normalizeSite(new URL(destination).hostname);
-      if (destinationHost.includes(targetSite)) {
+      if (destinationHost.includes(normalizedTarget)) {
         return link;
       }
     } catch (error) {
-      // Ignore URLs that cannot be parsed.
+      // Ignore malformed destinations.
     }
   }
 
   return null;
 }
 
-function continueLoop() {
-  if (!isClicking) {
+function navigateToGoogleSearch() {
+  chrome.runtime.sendMessage({ type: 'NAVIGATE_ACTIVE_TAB_TO_SEARCH' });
+}
+
+function runPageStep(state) {
+  if (!state?.enabled || !state.targetSite) {
     return;
   }
 
-  const isGoogleSearchPage =
-    window.location.hostname.includes('google.') && window.location.pathname === '/search';
-  const onTargetSite = normalizeSite(window.location.hostname).includes(targetSite);
-
-  if (isGoogleSearchPage) {
-    const targetResult = findTargetSearchResult();
+  if (isGoogleSearchPage()) {
+    const targetResult = findTargetSearchResult(state.targetSite);
 
     if (targetResult) {
-      console.log(`Clicking Google result for ${targetSite}:`, targetResult.href);
       setTimeout(() => {
-        if (isClicking) {
-          targetResult.click();
-        }
+        targetResult.click();
       }, SEARCH_RESULT_DELAY_MS);
       return;
     }
 
-    console.log(`No Google result found for ${targetSite}. Refreshing search.`);
     setTimeout(() => {
-      if (isClicking) {
-        window.location.href = googleSearchUrl;
-      }
+      navigateToGoogleSearch();
     }, SEARCH_RESULT_DELAY_MS);
     return;
   }
 
-  if (onTargetSite) {
-    console.log(`Visited ${targetSite}. Returning to Google results.`);
+  if (isOnTargetSite(state.targetSite)) {
     setTimeout(() => {
-      if (isClicking) {
-        window.location.href = googleSearchUrl;
-      }
-    }, TARGET_PAGE_DELAY_MS);
+      navigateToGoogleSearch();
+    }, TARGET_VISIT_DELAY_MS);
     return;
   }
 
-  console.log('Navigating to Google search page.');
-  window.location.href = googleSearchUrl;
+  navigateToGoogleSearch();
 }
 
-function startClicking(siteInput) {
-  isClicking = true;
-  originalUrl = window.location.href;
-  targetSite = normalizeSite(siteInput || window.location.hostname);
-
-  if (!targetSite) {
-    console.log('No target site provided. Stopping click loop.');
-    isClicking = false;
-    return;
-  }
-
-  googleSearchUrl = buildGoogleSearchUrl(targetSite);
-  continueLoop();
-}
-
-function stopClicking() {
-  isClicking = false;
-  console.log('Clicking stopped.');
-  if (window.location.href !== originalUrl) {
-    window.location.href = originalUrl;
-  }
-}
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'toggleClicking') {
-    if (!isClicking) {
-      startClicking(request.targetSite);
-    } else {
-      stopClicking();
+function initializeAutomation() {
+  chrome.runtime.sendMessage({ type: 'GET_STATE' }, (state) => {
+    if (chrome.runtime.lastError) {
+      return;
     }
-    sendResponse({ isClicking, targetSite });
-  } else if (request.action === 'getStatus') {
-    sendResponse({ isClicking, targetSite });
-  }
+    runPageStep(state);
+  });
+}
 
-  return true;
-});
-
-window.addEventListener('load', () => {
-  continueLoop();
-});
+window.addEventListener('load', initializeAutomation);
