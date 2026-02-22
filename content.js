@@ -79,7 +79,6 @@ function clickRandomInteractiveElement() {
   } catch (error) {
     // Ignore click failures and continue the session.
   }
-}
 
 function performEngagementStep() {
   const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
