@@ -1,5 +1,9 @@
 const SEARCH_RESULT_DELAY_MS = 2200;
-const TARGET_VISIT_DELAY_MS = 4200;
+const TARGET_VISIT_MIN_MS = 60000;
+const ENGAGEMENT_STEP_MS = 4000;
+
+let returnToSearchTimeoutId = null;
+let engagementIntervalId = null;
 
 function normalizeSite(site) {
   return (site || '')
@@ -57,6 +61,51 @@ function navigateToGoogleSearch() {
   chrome.runtime.sendMessage({ type: 'NAVIGATE_ACTIVE_TAB_TO_SEARCH' });
 }
 
+function clickRandomInteractiveElement() {
+  const candidates = Array.from(
+    document.querySelectorAll('button, [role="button"], a[href], input[type="button"], input[type="submit"]')
+  ).filter((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && !element.disabled;
+  });
+
+  if (candidates.length === 0) {
+    return;
+  }
+
+  const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+  try {
+    candidate.click();
+  } catch (error) {
+    // Ignore click failures and continue the session.
+  }
+
+function performEngagementStep() {
+  const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const nextScrollTop = Math.floor(Math.random() * (maxScrollTop + 1));
+  window.scrollTo({ top: nextScrollTop, behavior: 'smooth' });
+  clickRandomInteractiveElement();
+}
+
+function startTargetEngagement() {
+  if (engagementIntervalId !== null || returnToSearchTimeoutId !== null) {
+    return;
+  }
+
+  performEngagementStep();
+
+  engagementIntervalId = setInterval(() => {
+    performEngagementStep();
+  }, ENGAGEMENT_STEP_MS);
+
+  returnToSearchTimeoutId = setTimeout(() => {
+    clearInterval(engagementIntervalId);
+    engagementIntervalId = null;
+    returnToSearchTimeoutId = null;
+    navigateToGoogleSearch();
+  }, TARGET_VISIT_MIN_MS);
+}
+
 function runPageStep(state) {
   if (!state?.enabled || !state.targetSite) {
     return;
@@ -79,9 +128,7 @@ function runPageStep(state) {
   }
 
   if (isOnTargetSite(state.targetSite)) {
-    setTimeout(() => {
-      navigateToGoogleSearch();
-    }, TARGET_VISIT_DELAY_MS);
+    startTargetEngagement();
     return;
   }
 
