@@ -79,6 +79,19 @@ function clickRandomInteractiveElement() {
   } catch (error) {
     // Ignore click failures and continue the session.
   }
+
+  performEngagementStep();
+
+  engagementIntervalId = setInterval(() => {
+    performEngagementStep();
+  }, ENGAGEMENT_STEP_MS);
+
+  returnToSearchTimeoutId = setTimeout(() => {
+    clearInterval(engagementIntervalId);
+    engagementIntervalId = null;
+    returnToSearchTimeoutId = null;
+    navigateToGoogleSearch();
+  }, TARGET_VISIT_MIN_MS);
 }
 
 function performEngagementStep() {
