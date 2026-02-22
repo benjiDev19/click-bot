@@ -27,6 +27,12 @@ function normalizeSite(site) {
     .toLowerCase();
 }
 
+function withActiveTab(callback) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    callback(tabs?.[0] || null);
+  });
+}
+
 function loadState() {
   chrome.runtime.sendMessage({ type: 'GET_STATE' }, (state) => {
     if (chrome.runtime.lastError || !state) {
@@ -62,14 +68,19 @@ function toggleAutomation() {
       return;
     }
 
-    chrome.runtime.sendMessage({ type: 'START_AUTOMATION', targetSite }, (response) => {
-      if (!response?.ok) {
-        setStatus(response?.error || 'Failed to start automation.', true);
-        return;
-      }
+    withActiveTab((tab) => {
+      chrome.runtime.sendMessage(
+        { type: 'START_AUTOMATION', targetSite, tabId: tab?.id },
+        (response) => {
+          if (!response?.ok) {
+            setStatus(response?.error || 'Failed to start automation.', true);
+            return;
+          }
 
-      setButtonState(true);
-      setStatus(`Running for ${response.state.targetSite}`);
+          setButtonState(true);
+          setStatus(`Running for ${response.state.targetSite}`);
+        }
+      );
     });
   });
 }

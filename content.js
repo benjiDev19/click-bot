@@ -63,7 +63,7 @@ function navigateToGoogleSearch() {
 
 function clickRandomInteractiveElement() {
   const candidates = Array.from(
-    document.querySelectorAll('button, [role="button"], a[href], input[type="button"], input[type="submit"]')
+    document.querySelectorAll('button, [role="button"], input[type="button"]')
   ).filter((element) => {
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0 && !element.disabled;
@@ -80,7 +80,22 @@ function clickRandomInteractiveElement() {
     // Ignore click failures and continue the session.
   }
 
+  performEngagementStep();
+
+  engagementIntervalId = setInterval(() => {
+    performEngagementStep();
+  }, ENGAGEMENT_STEP_MS);
+
+  returnToSearchTimeoutId = setTimeout(() => {
+    clearInterval(engagementIntervalId);
+    engagementIntervalId = null;
+    returnToSearchTimeoutId = null;
+    navigateToGoogleSearch();
+  }, TARGET_VISIT_MIN_MS);
+}
+
 function performEngagementStep() {
+  console.log('[Google Click Runner] Engagement step on target site.');
   const maxScrollTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
   const nextScrollTop = Math.floor(Math.random() * (maxScrollTop + 1));
   window.scrollTo({ top: nextScrollTop, behavior: 'smooth' });

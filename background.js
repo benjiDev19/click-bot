@@ -29,6 +29,17 @@ function buildGoogleSearchUrl(targetSite) {
   return `https://www.google.com/search?q=${encodeURIComponent(targetSite)}`;
 }
 
+async function navigateTabToSearch(tabId, targetSite) {
+  if (!tabId || !targetSite) {
+    return false;
+  }
+
+  await chrome.tabs.update(tabId, {
+    url: buildGoogleSearchUrl(targetSite)
+  });
+  return true;
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   const state = await getState();
   await setState(state);
@@ -49,6 +60,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       const state = await setState({ enabled: true, targetSite });
+      await navigateTabToSearch(request.tabId, targetSite);
       sendResponse({ ok: true, state });
       return;
     }
@@ -66,9 +78,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return;
       }
 
-      await chrome.tabs.update(sender.tab.id, {
-        url: buildGoogleSearchUrl(state.targetSite)
-      });
+      await navigateTabToSearch(sender.tab.id, state.targetSite);
       sendResponse({ ok: true });
       return;
     }
